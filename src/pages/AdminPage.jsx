@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const API_BASE = 'http://localhost:5000'
+const API_BASE = 'http://paternal-disorder-viper.ngrok-free.dev'
 
 export default function AdminPage() {
   const [signalSent, setSignalSent] = useState(false)
