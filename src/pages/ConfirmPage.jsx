@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-const API_BASE = 'http://localhost:5000'
+const API_BASE = 'http://paternal-disorder-viper.ngrok-free.dev'
 const HOME_REDIRECT_MS = 10000
 
 export default function ConfirmPage() {
