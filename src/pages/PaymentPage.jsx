@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-const API_BASE = 'https://paternal-disorder-viper.ngrok-free.dev'
+const API_BASE = 'https://print-kiosk-server.onrender.com'
 const SESSION_SECONDS = 120
 const DEFAULT_AMOUNT = 20
 const PAYMENT_POLL_MS = 2000
