@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-const API_BASE = 'http://localhost:5000'
+const API_BASE = 'http://paternal-disorder-viper.ngrok-free.dev'
 const SESSION_SECONDS = 120
 const DEFAULT_AMOUNT = 20
 const PAYMENT_POLL_MS = 2000
