@@ -1,11 +1,38 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const API_BASE = 'https://print-kiosk-server.onrender.com'
+const POLL_INTERVAL = 3000
 
 export default function AdminPage() {
   const [signalSent, setSignalSent] = useState(false)
   const [authorizing, setAuthorizing] = useState(false)
   const [error, setError] = useState(null)
+  const [printStatus, setPrintStatus] = useState(null)
+  const [sessionInfo, setSessionInfo] = useState(null)
+
+  // Auto poll print status every 3 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/print-status`)
+        const data = await res.json()
+        setPrintStatus(data.status)
+        setSessionInfo(data)
+
+        // Auto refresh when print completes or fails
+        if (data.status === 'success' || data.status === 'error') {
+          clearInterval(interval)
+          setTimeout(() => {
+            window.location.reload()
+          }, 3000)
+        }
+      } catch (err) {
+        console.log('Polling error:', err)
+      }
+    }, POLL_INTERVAL)
+
+    return () => clearInterval(interval)
+  }, [])
 
   const handleAuthorize = async () => {
     setAuthorizing(true)
@@ -35,52 +62,137 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto flex min-h-screen max-w-lg flex-col gap-8 px-6 py-10">
-        <header className="space-y-2 text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-slate-500">
-            Operator only
-          </p>
-          <h1 className="text-3xl font-bold text-white">Kiosk Admin Portal</h1>
-          <p className="text-lg text-slate-400">
-            Authorize print after UPI payment is confirmed on your bank app.
-          </p>
-        </header>
+    <div style={{
+      minHeight: '100vh',
+      background: '#0f172a',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '2rem',
+      fontFamily: 'sans-serif'
+    }}>
+      <p style={{ color: '#94a3b8', letterSpacing: '0.2em', fontSize: '12px', marginBottom: '1rem' }}>
+        OPERATOR ONLY
+      </p>
 
-        <button
-          type="button"
-          onClick={handleAuthorize}
-          disabled={authorizing}
-          className="min-h-[8rem] w-full rounded-3xl border-4 border-emerald-400 bg-emerald-500 px-6 py-8 text-2xl font-bold leading-tight text-slate-950 shadow-xl shadow-emerald-500/40 transition-all hover:bg-emerald-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:text-3xl"
-        >
-          {authorizing ? 'Sending signal…' : '🟢 AUTHORIZE PRINT JOB'}
-        </button>
+      <h1 style={{ color: 'white', fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+        Kiosk Admin Portal
+      </h1>
 
-        {signalSent && (
-          <div
-            role="status"
-            className="flex items-center justify-center gap-3 rounded-2xl border-2 border-emerald-500 bg-emerald-500/15 px-6 py-4"
-          >
-            <span className="inline-flex h-3 w-3 rounded-full bg-emerald-400" aria-hidden="true" />
-            <span className="text-xl font-bold text-emerald-300">
-              Signal Sent to Kiosk
-            </span>
-          </div>
-        )}
+      <p style={{ color: '#94a3b8', marginBottom: '2rem', textAlign: 'center' }}>
+        Authorize print after UPI payment is confirmed on your bank app.
+      </p>
 
-        {error && (
-          <p
-            role="alert"
-            className="rounded-xl border border-red-500/50 bg-red-500/10 px-4 py-3 text-center text-lg text-red-300"
-          >
-            {error}
-          </p>
-        )}
+      {/* Session Info */}
+      {sessionInfo && (
+        <div style={{
+          background: '#1e293b',
+          border: '1px solid #334155',
+          borderRadius: '12px',
+          padding: '1rem 2rem',
+          marginBottom: '1.5rem',
+          color: '#94a3b8',
+          fontSize: '14px',
+          textAlign: 'center',
+          width: '100%',
+          maxWidth: '400px'
+        }}>
+          <p>📄 File: <span style={{color:'white'}}>{sessionInfo.fileName || 'No file uploaded'}</span></p>
+          <p>💰 Amount: <span style={{color:'white'}}>₹{sessionInfo.amount || '0'}</span></p>
+          <p>🖨️ Print Status: <span style={{
+            color: sessionInfo.status === 'success' ? '#22c55e' :
+                   sessionInfo.status === 'error' ? '#ef4444' :
+                   sessionInfo.status === 'printing' ? '#f59e0b' : '#94a3b8'
+          }}>{sessionInfo.status || 'waiting'}</span></p>
+        </div>
+      )}
 
-        <p className="mt-auto text-center text-sm text-slate-600">
-          Open this page only on the operator phone — not on the public kiosk screen.
-        </p>
-      </div>
+      {/* Print Status Messages */}
+      {printStatus === 'printing' && (
+        <div style={{
+          background: '#1e3a5f',
+          border: '1px solid #3b82f6',
+          borderRadius: '12px',
+          padding: '1rem 2rem',
+          marginBottom: '1.5rem',
+          color: '#93c5fd',
+          textAlign: 'center'
+        }}>
+          🖨️ Printing in progress...
+        </div>
+      )}
+
+      {printStatus === 'success' && (
+        <div style={{
+          background: '#14532d',
+          border: '1px solid #22c55e',
+          borderRadius: '12px',
+          padding: '1rem 2rem',
+          marginBottom: '1.5rem',
+          color: '#86efac',
+          textAlign: 'center'
+        }}>
+          ✅ Print successful! File deleted. Page refreshing...
+        </div>
+      )}
+
+      {printStatus === 'error' && (
+        <div style={{
+          background: '#450a0a',
+          border: '1px solid #ef4444',
+          borderRadius: '12px',
+          padding: '1rem 2rem',
+          marginBottom: '1.5rem',
+          color: '#fca5a5',
+          textAlign: 'center'
+        }}>
+          ❌ Print failed! Check printer connection. Page refreshing...
+        </div>
+      )}
+
+      {/* Authorize Button */}
+      <button
+        onClick={handleAuthorize}
+        disabled={authorizing || signalSent}
+        style={{
+          background: signalSent ? '#166534' : '#16a34a',
+          color: 'black',
+          fontWeight: 'bold',
+          fontSize: '1.2rem',
+          padding: '1.2rem 3rem',
+          borderRadius: '16px',
+          border: 'none',
+          cursor: authorizing || signalSent ? 'not-allowed' : 'pointer',
+          width: '100%',
+          maxWidth: '400px',
+          marginBottom: '1rem'
+        }}
+      >
+        {authorizing ? '⏳ Authorizing...' :
+         signalSent ? '✅ Print Authorized!' :
+         '🖨️ AUTHORIZE PRINT JOB'}
+      </button>
+
+      {/* Error Message */}
+      {error && (
+        <div style={{
+          background: '#450a0a',
+          border: '1px solid #ef4444',
+          borderRadius: '12px',
+          padding: '1rem 2rem',
+          color: '#fca5a5',
+          width: '100%',
+          maxWidth: '400px',
+          textAlign: 'center'
+        }}>
+          {error}
+        </div>
+      )}
+
+      <p style={{ color: '#475569', fontSize: '12px', marginTop: '2rem', textAlign: 'center' }}>
+        Open this page only on the operator phone — not on the public kiosk screen.
+      </p>
     </div>
   )
 }
