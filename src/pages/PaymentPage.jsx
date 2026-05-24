@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import QRCodeSVG from 'qrcode.react'
+import { QRCodeSVG } from "qrcode.react"
 
 const API_BASE = 'https://print-kiosk-server.onrender.com'
 const SESSION_SECONDS = 120
