@@ -79,7 +79,6 @@ function shredTempFile(tempFilePath) {
   } catch (unlinkErr) {
     console.error(
       '[PRINT] Failed to delete temporary spool file:',
-      paymentSession.printStatus = 'error'
       unlinkErr instanceof Error ? unlinkErr.message : unlinkErr,
     )
       paymentSession.printStatus = 'error' 
