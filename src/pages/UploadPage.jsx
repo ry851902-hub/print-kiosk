@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useNavigate } from 'react-router-dom'
+import * as pdfjsLib from 'pdfjs-dist'
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`
 
 const API_BASE = 'https://print-kiosk-server.onrender.com'
 const BW_PRICE = 2
@@ -21,6 +23,12 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+async function getPDFPageCount(file) {
+  const arrayBuffer = await file.arrayBuffer()
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+  return pdf.numPages
+}
+
 export default function UploadPage() {
   const navigate = useNavigate()
   const [file, setFile] = useState(null)
@@ -30,16 +38,29 @@ export default function UploadPage() {
   const [copies, setCopies] = useState(1)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploaded, setUploaded] = useState(false)
+  const [pageCount, setPageCount] = useState(DEFAULT_PAGE_COUNT)
 
-  const pageCount = file ? DEFAULT_PAGE_COUNT : 0
+  //const pageCount = file ? DEFAULT_PAGE_COUNT : 0
   const pricePerPage = colorMode === 'bw' ? BW_PRICE : COLOR_PRICE
   const total = useMemo(() => pageCount * copies * pricePerPage, [pageCount, copies, pricePerPage])
 
-  const onDrop = useCallback((accepted) => {
+  const onDrop = useCallback(async (accepted) => {
     if (accepted.length > 0) {
-      setFile(accepted[0])
+      const selectedFile = accepted[0]
+      setFile(selectedFile)
       setUploaded(false)
       setUploadProgress(0)
+  
+      if (selectedFile.type === 'application/pdf') {
+        try {
+          const count = await getPDFPageCount(selectedFile)
+          setPageCount(count)
+        } catch {
+          setPageCount(1)
+        }
+      } else {
+        setPageCount(1)
+      }
     }
   }, [])
 
@@ -215,6 +236,11 @@ export default function UploadPage() {
                 <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', margin: 0 }}>
                   {formatFileSize(file.size)} • Tap to change
                 </p>
+                {file.type === 'application/pdf' && (
+                <p style={{ color: '#00d4ff', fontSize: '0.85rem', margin: '4px 0 0', fontWeight: 600 }}>
+                  📄 {pageCount} {pageCount === 1 ? 'page' : 'pages'} detected
+                </p>
+              )}
               </div>
             ) : (
               <div>
