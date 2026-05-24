@@ -1,61 +1,58 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 const API_BASE = 'https://print-kiosk-server.onrender.com'
-const POLL_INTERVAL = 3000
 
 export default function AdminPage() {
-  const [signalSent, setSignalSent] = useState(false)
   const [authorizing, setAuthorizing] = useState(false)
   const [error, setError] = useState(null)
   const [printStatus, setPrintStatus] = useState(null)
-  const [sessionInfo, setSessionInfo] = useState(null)
-
-  // Auto poll print status every 3 seconds
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/print-status`)
-        const data = await res.json()
-        setPrintStatus(data.status)
-        setSessionInfo(data)
-
-        // Auto refresh when print completes or fails
-        if (data.status === 'success' || data.status === 'error') {
-          clearInterval(interval)
-          setTimeout(() => {
-            window.location.reload()
-          }, 3000)
-        }
-      } catch (err) {
-        console.log('Polling error:', err)
-      }
-    }, POLL_INTERVAL)
-
-    return () => clearInterval(interval)
-  }, [])
 
   const handleAuthorize = async () => {
     setAuthorizing(true)
     setError(null)
-    setSignalSent(false)
+    setPrintStatus(null)
 
     try {
-      const response = await fetch(`${API_BASE}/api/admin-approve`, {
+      // Step 1 - Approve payment
+      const approveRes = await fetch(`${API_BASE}/api/admin-approve`, {
         method: 'POST',
       })
 
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}))
-        throw new Error(body.error || `Approval failed (${response.status})`)
+      if (!approveRes.ok) {
+        const body = await approveRes.json().catch(() => ({}))
+        throw new Error(body.error || `Approval failed (${approveRes.status})`)
       }
 
-      setSignalSent(true)
+      setPrintStatus('authorized')
+
+      // Step 2 - Trigger print
+      const printRes = await fetch(`${API_BASE}/api/print`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+
+      if (!printRes.ok) {
+        const body = await printRes.json().catch(() => ({}))
+        throw new Error(body.error || `Print failed (${printRes.status})`)
+      }
+
+      setPrintStatus('success')
+
+      // Auto refresh after 3 seconds
+      setTimeout(() => {
+        window.location.reload()
+      }, 3000)
+
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : 'Could not reach the kiosk server on port 5000.'
+      const message = err instanceof Error ? err.message : 'Something went wrong'
       setError(message)
+      setPrintStatus('error')
+
+      // Auto refresh after 3 seconds on error too
+      setTimeout(() => {
+        window.location.reload()
+      }, 3000)
     } finally {
       setAuthorizing(false)
     }
@@ -84,32 +81,8 @@ export default function AdminPage() {
         Authorize print after UPI payment is confirmed on your bank app.
       </p>
 
-      {/* Session Info */}
-      {sessionInfo && (
-        <div style={{
-          background: '#1e293b',
-          border: '1px solid #334155',
-          borderRadius: '12px',
-          padding: '1rem 2rem',
-          marginBottom: '1.5rem',
-          color: '#94a3b8',
-          fontSize: '14px',
-          textAlign: 'center',
-          width: '100%',
-          maxWidth: '400px'
-        }}>
-          <p>📄 File: <span style={{color:'white'}}>{sessionInfo.fileName || 'No file uploaded'}</span></p>
-          <p>💰 Amount: <span style={{color:'white'}}>₹{sessionInfo.amount || '0'}</span></p>
-          <p>🖨️ Print Status: <span style={{
-            color: sessionInfo.status === 'success' ? '#22c55e' :
-                   sessionInfo.status === 'error' ? '#ef4444' :
-                   sessionInfo.status === 'printing' ? '#f59e0b' : '#94a3b8'
-          }}>{sessionInfo.status || 'waiting'}</span></p>
-        </div>
-      )}
-
-      {/* Print Status Messages */}
-      {printStatus === 'printing' && (
+      {/* Status Messages */}
+      {printStatus === 'authorized' && (
         <div style={{
           background: '#1e3a5f',
           border: '1px solid #3b82f6',
@@ -117,9 +90,11 @@ export default function AdminPage() {
           padding: '1rem 2rem',
           marginBottom: '1.5rem',
           color: '#93c5fd',
-          textAlign: 'center'
+          textAlign: 'center',
+          width: '100%',
+          maxWidth: '400px'
         }}>
-          🖨️ Printing in progress...
+          🖨️ Print job authorized! Printing...
         </div>
       )}
 
@@ -131,9 +106,11 @@ export default function AdminPage() {
           padding: '1rem 2rem',
           marginBottom: '1.5rem',
           color: '#86efac',
-          textAlign: 'center'
+          textAlign: 'center',
+          width: '100%',
+          maxWidth: '400px'
         }}>
-          ✅ Print successful! File deleted. Page refreshing...
+          ✅ Print successful! File permanently deleted. Refreshing in 3 seconds...
         </div>
       )}
 
@@ -145,32 +122,35 @@ export default function AdminPage() {
           padding: '1rem 2rem',
           marginBottom: '1.5rem',
           color: '#fca5a5',
-          textAlign: 'center'
+          textAlign: 'center',
+          width: '100%',
+          maxWidth: '400px'
         }}>
-          ❌ Print failed! Check printer connection. Page refreshing...
+          ❌ Print failed! Check printer connection. Refreshing in 3 seconds...
         </div>
       )}
 
       {/* Authorize Button */}
       <button
         onClick={handleAuthorize}
-        disabled={authorizing || signalSent}
+        disabled={authorizing || printStatus === 'success'}
         style={{
-          background: signalSent ? '#166534' : '#16a34a',
-          color: 'black',
+          background: printStatus === 'success' ? '#166534' :
+                      authorizing ? '#1e40af' : '#16a34a',
+          color: 'white',
           fontWeight: 'bold',
           fontSize: '1.2rem',
           padding: '1.2rem 3rem',
           borderRadius: '16px',
           border: 'none',
-          cursor: authorizing || signalSent ? 'not-allowed' : 'pointer',
+          cursor: authorizing || printStatus === 'success' ? 'not-allowed' : 'pointer',
           width: '100%',
           maxWidth: '400px',
           marginBottom: '1rem'
         }}
       >
-        {authorizing ? '⏳ Authorizing...' :
-         signalSent ? '✅ Print Authorized!' :
+        {authorizing ? '⏳ Printing...' :
+         printStatus === 'success' ? '✅ Print Done!' :
          '🖨️ AUTHORIZE PRINT JOB'}
       </button>
 
@@ -184,7 +164,8 @@ export default function AdminPage() {
           color: '#fca5a5',
           width: '100%',
           maxWidth: '400px',
-          textAlign: 'center'
+          textAlign: 'center',
+          marginTop: '1rem'
         }}>
           {error}
         </div>
