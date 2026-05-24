@@ -82,6 +82,7 @@ function shredTempFile(tempFilePath) {
       paymentSession.printStatus = 'error'
       unlinkErr instanceof Error ? unlinkErr.message : unlinkErr,
     )
+      paymentSession.printStatus = 'error' 
   }
 }
 
