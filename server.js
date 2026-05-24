@@ -22,7 +22,7 @@ const upload = multer({
 let fileBuffer = null
 let fileMeta = null
 let securityTimeout = null
-let paymentSession = { isPaid: false }
+let paymentSession = { isPaid: false, printStatus: 'waiting', amount: 0 }
 
 function secureWipe(reason) {
   console.log(`[SECURITY] Executing secure memory wipe... (${reason})`)
@@ -79,6 +79,7 @@ function shredTempFile(tempFilePath) {
   } catch (unlinkErr) {
     console.error(
       '[PRINT] Failed to delete temporary spool file:',
+      paymentSession.printStatus = 'error'
       unlinkErr instanceof Error ? unlinkErr.message : unlinkErr,
     )
   }
@@ -154,13 +155,14 @@ app.post('/api/print', (req, res) => {
     console.error('[PRINT] Could not create temporary spool file:', message)
     return res.status(500).json({ error: message })
   }
-
+paymentSession.printStatus = 'printing'
   ptp
     .print(tempFilePath)
     .then(() => {
       console.log(
         '🔒 Hardware Spool Complete: Temporary file shredded, memory cleared.',
       )
+      paymentSession.printStatus = 'success'
       shredTempFile(tempFilePath)
       secureWipe('post-print hardware spool complete')
       paymentSession.isPaid = false
@@ -180,6 +182,7 @@ app.post('/api/print', (req, res) => {
           : 'Unknown printer error (offline, out of paper, or driver issue)'
 
       console.error('[PRINT] Printer hardware error:', message)
+      paymentSession.printStatus = 'error'
       if (printErr instanceof Error && printErr.stack) {
         console.error('[PRINT] Stack trace:', printErr.stack)
       }
@@ -215,6 +218,14 @@ app.get('/api/health', (_req, res) => {
     ok: true,
     fileInMemory: fileBuffer !== null,
     meta: fileMeta,
+  })
+})// Print status endpoint
+app.get('/api/print-status', (_req, res) => {
+  res.json({
+    status: paymentSession.printStatus || 'waiting',
+    fileName: fileMeta ? fileMeta.originalName : null,
+    amount: paymentSession.amount || 0,
+    isPaid: paymentSession.isPaid
   })
 })
 
