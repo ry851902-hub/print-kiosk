@@ -12,7 +12,9 @@ const SECURITY_TIMEOUT_MS = 5 * 60 * 1000
 const app = express()
 
 app.use(cors({
-  origin: '*'
+  origin: '*',
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type']
 }))
 app.use(express.json())
 
