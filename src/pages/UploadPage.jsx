@@ -1,5 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
-import { useDropzone } from 'react-dropzone'
+import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 
@@ -8,91 +7,64 @@ const BW_PRICE = 2
 const COLOR_PRICE = 10
 const DEFAULT_PAGE_COUNT = 1
 
-const ACCEPT = {
-  'application/pdf': ['.pdf'],
-  'image/jpeg': ['.jpg', '.jpeg'],
-  'image/png': ['.png'],
-  'image/gif': ['.gif'],
-  'image/webp': ['.webp'],
-}
-
-function formatFileSize(bytes) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
 export default function UploadPage() {
   const navigate = useNavigate()
-  const [file, setFile] = useState(null)
-  const [uploading, setUploading] = useState(false)
   const [colorMode, setColorMode] = useState('bw')
   const [sided, setSided] = useState('single')
   const [copies, setCopies] = useState(1)
-  const [uploadProgress, setUploadProgress] = useState(0)
-  const [uploaded, setUploaded] = useState(false)
+  const [fileReceived, setFileReceived] = useState(false)
+  const [fileName, setFileName] = useState('')
+  const [fileSize, setFileSize] = useState(0)
+  const [uploading, setUploading] = useState(false)
 
-  const pageCount = file ? DEFAULT_PAGE_COUNT : 0
+  const pageCount = fileReceived ? DEFAULT_PAGE_COUNT : 0
   const pricePerPage = colorMode === 'bw' ? BW_PRICE : COLOR_PRICE
   const total = useMemo(() => pageCount * copies * pricePerPage, [pageCount, copies, pricePerPage])
 
-  const onDrop = useCallback((accepted) => {
-    if (accepted.length > 0) {
-      setFile(accepted[0])
-      setUploaded(false)
-      setUploadProgress(0)
-    }
+  // Poll server every 3 seconds to check if mobile uploaded a file
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/health`)
+        const data = await res.json()
+        if (data.fileInMemory && data.meta) {
+          setFileReceived(true)
+          setFileName(data.meta.originalname || 'Unknown file')
+          setFileSize(data.meta.size || 0)
+        } else {
+          setFileReceived(false)
+          setFileName('')
+          setFileSize(0)
+        }
+      } catch (err) {
+        // server unreachable
+      }
+    }, 3000)
+    return () => clearInterval(interval)
   }, [])
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: ACCEPT,
-    maxFiles: 1,
-    maxSize: 50 * 1024 * 1024,
-  })
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
 
-  const handleUpload = async () => {
-    if (!file) return
+  const handleProceed = async () => {
     setUploading(true)
-    setUploadProgress(0)
-
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 90) { clearInterval(interval); return 90 }
-        return prev + 10
+    setTimeout(() => {
+      navigate('/payment', {
+        state: {
+          fileName,
+          fileSize,
+          colorMode,
+          sided,
+          copies,
+          amount: total,
+          pageCount,
+          backendFile: { originalname: fileName, size: fileSize },
+        },
       })
-    }, 150)
-
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: formData })
-      if (!res.ok) throw new Error('Upload failed')
-      const data = await res.json()
-      clearInterval(interval)
-      setUploadProgress(100)
-      setUploaded(true)
-
-      setTimeout(() => {
-        navigate('/payment', {
-          state: {
-            fileName: file.name,
-            fileSize: file.size,
-            colorMode,
-            sided,
-            copies,
-            amount: total,
-            pageCount,
-            backendFile: data.file,
-          },
-        })
-      }, 800)
-    } catch (err) {
-      clearInterval(interval)
-      setUploadProgress(0)
-      setUploading(false)
-      alert('Upload failed. Please try again.')
-    }
+    }, 500)
   }
 
   return (
@@ -104,7 +76,7 @@ export default function UploadPage() {
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Animated background orbs */}
+      {/* Background orbs */}
       <div style={{
         position: 'fixed', top: '-20%', left: '-10%',
         width: '500px', height: '500px',
@@ -124,18 +96,14 @@ export default function UploadPage() {
         @keyframes pulse1 { 0%,100%{transform:scale(1) translate(0,0)} 50%{transform:scale(1.1) translate(20px,20px)} }
         @keyframes pulse2 { 0%,100%{transform:scale(1) translate(0,0)} 50%{transform:scale(1.15) translate(-20px,-20px)} }
         @keyframes fadeInUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
-        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        @keyframes checkPop { 0%{transform:scale(0)} 60%{transform:scale(1.2)} 100%{transform:scale(1)} }
         @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-        .upload-zone { transition: all 0.3s ease; }
-        .upload-zone:hover { transform: translateY(-2px); }
+        @keyframes ping { 0%{transform:scale(1);opacity:1} 75%,100%{transform:scale(2);opacity:0} }
         .btn-primary {
           background: linear-gradient(135deg, #00d4ff, #8b5cf6);
           border: none; border-radius: 14px;
           color: white; font-size: 1.1rem; font-weight: 600;
           padding: 1rem 2rem; cursor: pointer; width: 100%;
-          transition: all 0.3s ease; position: relative; overflow: hidden;
+          transition: all 0.3s ease;
         }
         .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,212,255,0.3); }
         .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -175,21 +143,19 @@ export default function UploadPage() {
             </span>
           </div>
           <h1 style={{
-            fontSize: '2rem', fontWeight: 700, margin: 0,
-            background: 'linear-gradient(135deg, #ffffff, #00d4ff)',
+            fontSize: '2.8rem', fontWeight: 800, margin: 0,
+            background: 'linear-gradient(135deg, #ffffff 0%, #00d4ff 50%, #8b5cf6 100%)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            letterSpacing: '-1px', lineHeight: 1.1,
           }}>
             Upload & Print
-            <h1 style={{
-  fontSize: '2.8rem', fontWeight: 800, margin: 0,
-  background: 'linear-gradient(135deg, #ffffff 0%, #00d4ff 50%, #8b5cf6 100%)',
-  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-  letterSpacing: '-1px', lineHeight: 1.1,
-}}>
-  Upload & Print
-</h1>
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.95rem', marginTop: '6px' }}>
+            Fast, secure, zero data retention
+          </p>
+        </div>
 
-           {/* QR Code Section */}
+        {/* QR Code Section */}
         <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '1.2rem', textAlign: 'center' }}>
           <p style={{
             color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem',
@@ -199,10 +165,8 @@ export default function UploadPage() {
             📱 SEND FILE FROM YOUR PHONE
           </p>
           <div style={{
-            display: 'inline-block',
-            padding: '12px',
-            background: 'white',
-            borderRadius: '16px',
+            display: 'inline-block', padding: '12px',
+            background: 'white', borderRadius: '16px',
           }}>
             <QRCodeSVG
               value={`${window.location.origin}/mobile-upload`}
@@ -217,54 +181,60 @@ export default function UploadPage() {
           </p>
         </div>
 
-        {/* Upload Zone */}
-        <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '1.2rem' }}>
-          <div
-            {...getRootProps()}
-            className="upload-zone"
-            style={{
-              border: `2px dashed ${isDragActive ? '#00d4ff' : file ? 'rgba(139,92,246,0.6)' : 'rgba(255,255,255,0.2)'}`,
-              borderRadius: '14px',
-              padding: '2.5rem 1rem',
-              textAlign: 'center',
-              cursor: 'pointer',
-              background: isDragActive ? 'rgba(0,212,255,0.05)' : 'rgba(255,255,255,0.02)',
-              transition: 'all 0.3s ease',
-            }}
-          >
-            <input {...getInputProps()} />
-            {file ? (
-              <div style={{ animation: 'fadeInUp 0.4s ease' }}>
-                <div style={{
-                  width: '60px', height: '60px', margin: '0 auto 1rem',
-                  background: 'linear-gradient(135deg, rgba(0,212,255,0.2), rgba(139,92,246,0.2))',
-                  borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '28px',
-                }}>
-                  {file.type === 'application/pdf' ? '📄' : '🖼️'}
-                </div>
-                <p style={{ color: 'white', fontWeight: 600, margin: '0 0 4px' }}>{file.name}</p>
-                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', margin: 0 }}>
-                  {formatFileSize(file.size)} • Tap to change
-                </p>
+        {/* File Received Status */}
+        {!fileReceived ? (
+          <div className="glass-card" style={{
+            padding: '1.5rem', marginBottom: '1.2rem', textAlign: 'center'
+          }}>
+            <div style={{ position: 'relative', display: 'inline-block', marginBottom: '1rem' }}>
+              <div style={{
+                width: '16px', height: '16px', borderRadius: '50%',
+                background: '#f59e0b', margin: '0 auto',
+              }} />
+              <div style={{
+                position: 'absolute', top: 0, left: 0,
+                width: '16px', height: '16px', borderRadius: '50%',
+                background: '#f59e0b', animation: 'ping 1.5s ease-in-out infinite',
+              }} />
+            </div>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem', margin: 0 }}>
+              Waiting for file from phone...
+            </p>
+          </div>
+        ) : (
+          <div className="glass-card" style={{
+            padding: '1.5rem', marginBottom: '1.2rem',
+            border: '1px solid rgba(34,197,94,0.4)',
+            animation: 'fadeInUp 0.4s ease',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{
+                width: '52px', height: '52px', borderRadius: '14px', flexShrink: 0,
+                background: 'linear-gradient(135deg, rgba(34,197,94,0.3), rgba(0,212,255,0.2))',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '26px',
+              }}>
+                📄
               </div>
-            ) : (
-              <div>
-                <div style={{
-                  fontSize: '48px', marginBottom: '1rem',
-                  animation: 'float 3s ease-in-out infinite',
-                  display: 'block',
-                }}>📤</div>
-                <p style={{ color: 'white', fontWeight: 600, fontSize: '1.1rem', margin: '0 0 6px' }}>
-                  {isDragActive ? 'Drop it here!' : 'Tap or drag your file here'}
+              <div style={{ flex: 1, textAlign: 'left' }}>
+                <p style={{ color: 'white', fontWeight: 600, margin: '0 0 4px', fontSize: '0.95rem' }}>
+                  {fileName}
                 </p>
                 <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem', margin: 0 }}>
-                  PDF, JPG, PNG, GIF, WEBP • Max 50MB
+                  {formatFileSize(fileSize)} • Ready to print
                 </p>
               </div>
-            )}
+              <div style={{
+                background: 'rgba(34,197,94,0.2)', border: '1px solid rgba(34,197,94,0.4)',
+                borderRadius: '8px', padding: '4px 10px',
+              }}>
+                <span style={{ color: 'rgba(34,197,94,0.9)', fontSize: '0.75rem', fontWeight: 600 }}>
+                  ✅ Received
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Print Config */}
         <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '1.2rem' }}>
@@ -306,7 +276,7 @@ export default function UploadPage() {
                 width: '40px', height: '40px', borderRadius: '10px',
                 background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
                 color: 'white', fontSize: '1.4rem', cursor: 'pointer', display: 'flex',
-                alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s',
+                alignItems: 'center', justifyContent: 'center',
               }}>−</button>
               <span style={{ color: 'white', fontWeight: 700, fontSize: '1.3rem', minWidth: '30px', textAlign: 'center' }}>{copies}</span>
               <button onClick={() => setCopies(c => Math.min(99, c + 1))} style={{
@@ -314,7 +284,7 @@ export default function UploadPage() {
                 background: 'linear-gradient(135deg, rgba(0,212,255,0.3), rgba(139,92,246,0.3))',
                 border: '1px solid rgba(0,212,255,0.4)',
                 color: 'white', fontSize: '1.4rem', cursor: 'pointer', display: 'flex',
-                alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s',
+                alignItems: 'center', justifyContent: 'center',
               }}>+</button>
             </div>
           </div>
@@ -355,35 +325,17 @@ export default function UploadPage() {
           </p>
         </div>
 
-        {/* Upload progress */}
-        {uploading && (
-          <div style={{ marginBottom: '1rem', animation: 'fadeInUp 0.3s ease' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem' }}>
-                {uploaded ? '✅ Upload complete!' : 'Uploading securely...'}
-              </span>
-              <span style={{ color: '#00d4ff', fontSize: '0.8rem', fontWeight: 600 }}>{uploadProgress}%</span>
-            </div>
-            <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '8px', height: '6px', overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', borderRadius: '8px',
-                background: 'linear-gradient(90deg, #00d4ff, #8b5cf6)',
-                width: `${uploadProgress}%`,
-                transition: 'width 0.3s ease',
-              }} />
-            </div>
-          </div>
-        )}
-
         {/* CTA Button */}
         <button
           className="btn-primary"
-          onClick={handleUpload}
-          disabled={!file || uploading}
+          onClick={handleProceed}
+          disabled={!fileReceived || uploading}
         >
           {uploading
-            ? uploaded ? '✅ Redirecting to Payment...' : '⏳ Uploading...'
-            : file ? '💳 Proceed to Payment' : '📁 Select a File First'}
+            ? '⏳ Please wait...'
+            : fileReceived
+              ? '💳 Proceed to Payment'
+              : '📱 Waiting for file from phone...'}
         </button>
 
         <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', textAlign: 'center', marginTop: '1rem' }}>
