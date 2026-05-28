@@ -11,7 +11,9 @@ const SECURITY_TIMEOUT_MS = 5 * 60 * 1000
 
 const app = express()
 
-app.use(cors())
+app.use(cors({
+  origin: '*'
+}))
 app.use(express.json())
 
 const upload = multer({
