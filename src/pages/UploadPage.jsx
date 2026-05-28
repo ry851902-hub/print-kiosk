@@ -15,9 +15,9 @@ export default function UploadPage() {
   const [fileReceived, setFileReceived] = useState(false)
   const [fileName, setFileName] = useState('')
   const [fileSize, setFileSize] = useState(0)
+  const [pageCount, setPageCount] = useState(1)
   const [uploading, setUploading] = useState(false)
 
-  const pageCount = fileReceived ? DEFAULT_PAGE_COUNT : 0
   const pricePerPage = colorMode === 'bw' ? BW_PRICE : COLOR_PRICE
   const total = useMemo(() => pageCount * copies * pricePerPage, [pageCount, copies, pricePerPage])
 
@@ -29,8 +29,9 @@ export default function UploadPage() {
         const data = await res.json()
         if (data.fileInMemory && data.meta) {
           setFileReceived(true)
-          setFileName(data.meta.originalname || 'Unknown file')
-          setFileSize(data.meta.size || 0)
+        setFileName(data.meta.originalname || 'Unknown file')
+setFileSize(data.meta.size || 0)
+setPageCount(data.meta.pageCount || 1)
         } else {
           setFileReceived(false)
           setFileName('')
