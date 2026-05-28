@@ -1,3 +1,4 @@
+import { QRCodeSVG } from 'qrcode.react'
 import { useCallback, useMemo, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useNavigate } from 'react-router-dom'
@@ -205,7 +206,33 @@ export default function UploadPage() {
             Fast, secure, zero data retention
           </p>
         </div>
-
+{/* Mobile QR Upload Section */}
+<div className="glass-card" style={{ padding: '1.5rem', marginBottom: '1.2rem', textAlign: 'center' }}>
+  <p style={{
+    color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem',
+    fontWeight: 600, letterSpacing: '1px',
+    marginBottom: '1rem', marginTop: 0
+  }}>
+    📱 APNE PHONE SE FILE BHEJO
+  </p>
+  <div style={{
+    display: 'inline-block',
+    padding: '12px',
+    background: 'white',
+    borderRadius: '16px',
+  }}>
+    <QRCodeSVG
+      value={`${window.location.origin}/mobile-upload`}
+      size={150}
+    />
+  </div>
+  <p style={{
+    color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem',
+    marginTop: '0.75rem', marginBottom: 0
+  }}>
+    QR scan karo → file choose karo → automatic kiosk pe aa jayegi
+  </p>
+</div>
         {/* Upload Zone */}
         <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '1.2rem' }}>
           <div
