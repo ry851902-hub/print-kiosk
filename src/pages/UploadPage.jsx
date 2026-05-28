@@ -180,7 +180,7 @@ export default function UploadPage() {
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           }}>
             Upload & Print
-         <h1 style={{
+            <h1 style={{
   fontSize: '2.8rem', fontWeight: 800, margin: 0,
   background: 'linear-gradient(135deg, #ffffff 0%, #00d4ff 50%, #8b5cf6 100%)',
   WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
@@ -189,7 +189,7 @@ export default function UploadPage() {
   Upload & Print
 </h1>
 
-        {/* QR Code Section */}
+           {/* QR Code Section */}
         <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '1.2rem', textAlign: 'center' }}>
           <p style={{
             color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem',
