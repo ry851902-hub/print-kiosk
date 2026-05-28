@@ -18,7 +18,6 @@ export default function MobileUploadPage() {
     setProgress(0)
     setErrorMsg('')
 
-    // Fake progress animation
     const interval = setInterval(() => {
       setProgress(prev => {
         if (prev >= 90) { clearInterval(interval); return 90 }
@@ -46,7 +45,7 @@ export default function MobileUploadPage() {
       clearInterval(interval)
       setProgress(0)
       setStatus('error')
-      setErrorMsg(err.message || 'Kuch gadbad ho gayi, dobara try karo')
+      setErrorMsg(err.message || 'Something went wrong, please try again')
     }
   }
 
@@ -89,10 +88,10 @@ export default function MobileUploadPage() {
           background: 'linear-gradient(135deg, #ffffff, #00d4ff)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
         }}>
-          {status === 'idle' && 'File Bhejo Kiosk Pe'}
-          {status === 'uploading' && 'Upload Ho Raha Hai...'}
-          {status === 'done' && 'File Pahunch Gayi!'}
-          {status === 'error' && 'Kuch Gadbad Ho Gayi'}
+          {status === 'idle' && 'Send File to Kiosk'}
+          {status === 'uploading' && 'Uploading...'}
+          {status === 'done' && 'File Sent!'}
+          {status === 'error' && 'Something Went Wrong'}
         </h2>
 
         {/* Subtitle */}
@@ -100,9 +99,9 @@ export default function MobileUploadPage() {
           color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem',
           lineHeight: 1.6, marginBottom: '1.8rem',
         }}>
-          {status === 'idle' && 'Apne phone se koi bhi file choose karo — PDF, photo, kuch bhi'}
-          {status === 'uploading' && `"${fileName}" upload ho raha hai kiosk pe...`}
-          {status === 'done' && `"${fileName}" successfully kiosk pe pahunch gayi! Ab kiosk screen pe print settings set karo.`}
+          {status === 'idle' && 'Choose any file from your phone — PDF, photo, anything'}
+          {status === 'uploading' && `"${fileName}" is being uploaded to the kiosk...`}
+          {status === 'done' && `"${fileName}" successfully sent to the kiosk! Now set print settings on the kiosk screen.`}
           {status === 'error' && errorMsg}
         </p>
 
@@ -145,10 +144,10 @@ export default function MobileUploadPage() {
                 padding: '0.9rem 2rem', cursor: 'pointer', width: '100%',
                 marginBottom: '0.75rem',
               }}>
-              📁 File Choose Karo
+              📁 Choose File
             </button>
             <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.75rem', margin: 0 }}>
-              PDF, JPG, PNG support • Max 50MB
+              PDF, JPG, PNG supported • Max 50MB
             </p>
           </>
         )}
@@ -161,7 +160,7 @@ export default function MobileUploadPage() {
             borderRadius: '12px', padding: '12px',
             color: 'rgba(34,197,94,0.9)', fontSize: '0.85rem',
           }}>
-            🖨️ Kiosk screen pe jao aur print karo!
+            🖨️ Go to the kiosk screen and print!
           </div>
         )}
 
@@ -176,7 +175,7 @@ export default function MobileUploadPage() {
               fontSize: '1rem', fontWeight: 600,
               padding: '0.9rem 2rem', cursor: 'pointer', width: '100%',
             }}>
-            🔄 Dobara Try Karo
+            🔄 Try Again
           </button>
         )}
 
