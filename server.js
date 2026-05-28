@@ -1,3 +1,4 @@
+import pdfParse from 'pdf-parse'
 import express from 'express'
 import cors from 'cors'
 import multer from 'multer'
@@ -89,7 +90,7 @@ function shredTempFile(tempFilePath) {
   }
 }
 
-app.post('/api/upload', upload.single('file'), (req, res) => {
+app.post('/api/upload', upload.single('file'), async (req, res) => {
   console.log('[UPLOAD] POST /api/upload')
 
   if (!req.file) {
@@ -107,12 +108,25 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 
   console.log('[UPLOAD] File received in RAM buffer (memoryStorage — not written to disk)')
   fileBuffer = req.file.buffer
-  fileMeta = {
-    originalname: req.file.originalname,
-    mimetype: req.file.mimetype,
-    size: req.file.size,
-    encoding: req.file.encoding,
-    uploadedAt: new Date().toISOString(),
+
+let pageCount = 1
+try {
+  if (req.file.mimetype === 'application/pdf') {
+    const pdfData = await pdfParse(fileBuffer)
+    pageCount = pdfData.numpages || 1
+  }
+} catch (e) {
+  pageCount = 1
+}
+
+fileMeta = {
+  originalname: req.file.originalname,
+  mimetype: req.file.mimetype,
+  size: req.file.size,
+  encoding: req.file.encoding,
+  uploadedAt: new Date().toISOString(),
+  pageCount,
+}
   }
 
   console.log('[UPLOAD] Metadata:', fileMeta)
